@@ -1,0 +1,218 @@
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=IntelliJ IDEA
+
+### ================= 1. HOTELS =================
+
+###
+POST http://localhost:8080/api/hotels
+Content-Type: application/json
+
+{
+  "name": "Bukovina Palace",
+  "address": "вул. Головна, 141",
+  "city": "Чернівці",
+  "description": "Готель у центрі міста."
+}
+
+###
+POST http://localhost:8080/api/hotels
+Content-Type: application/json
+
+{
+  "name": "Hotel Videnskiy",
+  "address": "вул. Центральна, 10",
+  "city": "Чернівці",
+  "description": "Преміум готель із СПА центром."
+}
+
+###
+PUT http://localhost:8080/api/hotels/2
+Content-Type: application/json
+
+{
+  "name": "Viden",
+  "address": "Віденський проїзд, 5",
+  "city": "Чернівці",
+  "description": "Преміум готель із СПА центром та басейном."
+}
+
+###
+GET http://localhost:8080/api/hotels
+
+
+### ================= 2. GUESTS =================
+
+###
+POST http://localhost:8080/api/guests
+Content-Type: application/json
+
+{
+  "firstName": "Анастасія",
+  "lastName": "Дем'янчук",
+  "email": "nastya.d@gmail.com",
+  "phone": "+380501112233"
+}
+
+###
+POST http://localhost:8080/api/guests
+Content-Type: application/json
+
+{
+  "firstName": "Катерина",
+  "lastName": "Дорофтей",
+  "email": "kate.d@gmail.com",
+  "phone": "+380509998877"
+}
+
+###
+POST http://localhost:8080/api/guests
+Content-Type: application/json
+
+{
+  "firstName": "Михайло",
+  "lastName": "Бугера",
+  "email": "misha.b@gmail.com",
+  "phone": "+38098456780"
+}
+
+###
+DELETE http://localhost:8080/api/guests/3
+Authorization: Bearer {{admin_token}}
+
+###
+GET http://localhost:8080/api/guests
+Authorization: Bearer {{admin_token}}
+
+### ================= 3. ROOMS =================
+
+###
+POST http://localhost:8080/api/rooms
+Content-Type: application/json
+
+{
+  "hotelId": 1,
+  "roomNumber": "101",
+  "type": "STANDARD",
+  "pricePerNight": 1200.00,
+  "capacity": 2
+}
+
+###
+POST http://localhost:8080/api/rooms
+Content-Type: application/json
+
+{
+  "hotelId": 2,
+  "roomNumber": "VIP-1",
+  "type": "LUXURY",
+  "pricePerNight": 3500.00,
+  "capacity": 4
+}
+
+###
+PUT http://localhost:8080/api/rooms/1
+Content-Type: application/json
+
+{
+  "hotelId": 1,
+  "roomNumber": "101",
+  "type": "STANDARD",
+  "pricePerNight": 1350.00,
+  "capacity": 2
+}
+
+###
+GET http://localhost:8080/api/rooms
+Authorization: Bearer {{admin_token}}
+
+###
+DELETE http://localhost:8080/api/rooms/3
+Authorization: Bearer {{admin_token}}
+
+
+### ================= 4. BOOKINGS =================
+
+###
+POST http://localhost:8080/api/bookings
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2026-10-10",
+  "checkOutDate": "2026-10-15",
+  "status": "CONFIRMED",
+  "totalPrice": 6750.00
+}
+
+###
+POST http://localhost:8080/api/bookings
+Content-Type: application/json
+
+{
+  "roomId": 2,
+  "guestId": 2,
+  "checkInDate": "2026-11-01",
+  "checkOutDate": "2026-11-03",
+  "status": "PENDING",
+  "totalPrice": 7000.00
+}
+
+###
+DELETE http://localhost:8080/api/bookings/2
+
+###
+GET http://localhost:8080/api/bookings
+
+### 1. токен для alice
+POST http://localhost:9090/realms/course-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=backend-app
+    &username=alice
+    &password=alice123
+    &grant_type=password
+
+> {%
+    client.global.set("auth_token", response.body.access_token);
+%}
+
+### 2. Пробуємо створити кімнату з цим токеном
+POST http://localhost:8080/api/rooms
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "hotelId": 1,
+  "roomNumber": "999",
+  "type": "STANDARD",
+  "pricePerNight": 1500,
+  "capacity": 2
+}
+
+### 3. токен для bob
+POST http://localhost:9090/realms/course-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=backend-app
+    &username=bob
+    &password=bob123
+    &grant_type=password
+
+> {%
+    client.global.set("admin_token", response.body.access_token);
+%}
+
+### 4. Пробуємо створити кімнату як ADMIN
+POST http://localhost:8080/api/rooms
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "hotelId": 1,
+  "roomNumber": "VIP-999",
+  "type": "LUXURY",
+  "pricePerNight": 5000,
+  "capacity": 2
+}
