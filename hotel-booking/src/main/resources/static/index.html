@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Booking Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <h1>Управління готелями</h1>
+    </header>
+
+    <main class="content">
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Список готелів</h2>
+                <button id="open-modal-btn" class="primary-btn">+ Додати готель</button>
+            </div>
+            <div id="hotels-list" class="grid-container">
+                <p class="loading">Завантаження даних...</p>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Модальне вікно -->
+<div id="hotel-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Новий готель</h2>
+            <button id="close-modal" class="icon-btn">&times;</button>
+        </div>
+        <form id="hotel-form">
+            <!-- Приховане поле для збереження ID при редагуванні -->
+            <input type="hidden" id="h-id">
+
+            <div class="form-group">
+                <label>Назва готелю</label>
+                <input type="text" id="h-name" required placeholder="Наприклад: Grand Budapest">
+            </div>
+            <div class="form-group">
+                <label>Місто</label>
+                <input type="text" id="h-city" required placeholder="Наприклад: Чернівці">
+            </div>
+            <div class="form-group">
+                <label>Адреса</label>
+                <input type="text" id="h-address" required placeholder="Наприклад: вул. Головна, 1">
+            </div>
+            <div class="form-group">
+                <label>Опис</label>
+                <textarea id="h-desc" rows="3" required placeholder="Короткий опис готелю..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" id="cancel-btn" class="secondary-btn">Скасувати</button>
+                <button type="submit" class="primary-btn">Зберегти</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
