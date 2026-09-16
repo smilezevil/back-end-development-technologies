@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="001-create-hotel-table" author="smilezevil">
+        <createTable tableName="hotel">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="address" type="VARCHAR(255)"/>
+            <column name="city" type="VARCHAR(100)"/>
+            <column name="description" type="TEXT"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="002-create-room-table" author="smilezevil">
+        <createTable tableName="room">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="hotel_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_room_hotel" references="hotel(id)"/>
+            </column>
+            <column name="room_number" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="price_per_night" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="capacity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-create-guest-table" author="smilezevil">
+        <createTable tableName="guest">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="first_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="phone" type="VARCHAR(30)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="004-create-booking-table" author="smilezevil">
+        <createTable tableName="booking">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="room_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_booking_room" references="room(id)"/>
+            </column>
+            <column name="guest_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_booking_guest" references="guest(id)"/>
+            </column>
+            <column name="check_in_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="check_out_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_price" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
