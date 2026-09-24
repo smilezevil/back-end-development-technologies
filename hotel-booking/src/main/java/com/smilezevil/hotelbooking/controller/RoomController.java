@@ -19,7 +19,6 @@ public class RoomController {
 
     private final RoomService roomService;
 
-    // ДОДАНО: Перевірка ролі перед виконанням методу (AC 7)
     @PreAuthorize("hasRole('ADMIN') or hasRole('admin')")
     @PostMapping
     public ResponseEntity<RoomDTO> createRoom(@Valid @RequestBody RoomDTO dto) {
