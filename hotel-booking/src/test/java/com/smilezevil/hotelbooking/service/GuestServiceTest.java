@@ -35,11 +35,9 @@ class GuestServiceTest {
     @InjectMocks
     private GuestService guestService;
 
-    // ===== create =====
 
     @Test
     void create_validGuest_savesAndReturnsDto() {
-        // Arrange
         GuestDTO inputDto = guestDto(null, "nastya.d@gmail.com");
         Guest guest = guest(null, "nastya.d@gmail.com");
         Guest savedGuest = guest(1L, "nastya.d@gmail.com");
@@ -48,10 +46,8 @@ class GuestServiceTest {
         when(guestRepository.save(guest)).thenReturn(savedGuest);
         when(guestMapper.toDto(savedGuest)).thenReturn(guestDto(1L, "nastya.d@gmail.com"));
 
-        // Act
         GuestDTO result = guestService.create(inputDto);
 
-        // Assert
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getEmail()).isEqualTo("nastya.d@gmail.com");
         verify(guestRepository).save(guest);
@@ -59,7 +55,6 @@ class GuestServiceTest {
 
     @Test
     void create_duplicateEmail_throwsExceptionAndReturnsNothing() {
-        // Arrange
         GuestDTO inputDto = guestDto(null, "nastya.d@gmail.com");
         Guest guest = guest(null, "nastya.d@gmail.com");
 
@@ -67,17 +62,14 @@ class GuestServiceTest {
         when(guestRepository.save(guest))
                 .thenThrow(new DataIntegrityViolationException("duplicate email"));
 
-        // Act + Assert
         assertThatThrownBy(() -> guestService.create(inputDto))
                 .isInstanceOf(DataIntegrityViolationException.class);
         verify(guestMapper, never()).toDto(any());
     }
 
-    // ===== findAll =====
 
     @Test
     void findAll_guestsExist_returnsAllGuests() {
-        // Arrange
         Guest first = guest(1L, "nastya.d@gmail.com");
         Guest second = guest(2L, "kate.d@gmail.com");
 
@@ -85,10 +77,8 @@ class GuestServiceTest {
         when(guestMapper.toDto(first)).thenReturn(guestDto(1L, "nastya.d@gmail.com"));
         when(guestMapper.toDto(second)).thenReturn(guestDto(2L, "kate.d@gmail.com"));
 
-        // Act
         List<GuestDTO> result = guestService.findAll();
 
-        // Assert
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getEmail()).isEqualTo("nastya.d@gmail.com");
         assertThat(result.get(1).getEmail()).isEqualTo("kate.d@gmail.com");
@@ -96,51 +86,40 @@ class GuestServiceTest {
 
     @Test
     void findAll_noGuests_returnsEmptyList() {
-        // Arrange
         when(guestRepository.findAll()).thenReturn(List.of());
 
-        // Act
         List<GuestDTO> result = guestService.findAll();
 
-        // Assert
         assertThat(result).isEmpty();
         verifyNoInteractions(guestMapper);
     }
 
-    // ===== findById =====
 
     @Test
     void findById_existingId_returnsGuest() {
-        // Arrange
         Guest guest = guest(1L, "nastya.d@gmail.com");
 
         when(guestRepository.findById(1L)).thenReturn(Optional.of(guest));
         when(guestMapper.toDto(guest)).thenReturn(guestDto(1L, "nastya.d@gmail.com"));
 
-        // Act
         GuestDTO result = guestService.findById(1L);
 
-        // Assert
         assertThat(result.getId()).isEqualTo(1L);
         assertThat(result.getEmail()).isEqualTo("nastya.d@gmail.com");
     }
 
     @Test
     void findById_nonExistingId_throwsNotFoundException() {
-        // Arrange
         when(guestRepository.findById(42L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> guestService.findById(42L))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Гостя не знайдено");
     }
 
-    // ===== update =====
 
     @Test
     void update_existingId_updatesAndSavesGuest() {
-        // Arrange
         Guest existing = guest(1L, "old@gmail.com");
         GuestDTO changes = guestDto(null, "new@gmail.com");
 
@@ -148,10 +127,8 @@ class GuestServiceTest {
         when(guestRepository.save(existing)).thenReturn(existing);
         when(guestMapper.toDto(existing)).thenReturn(guestDto(1L, "new@gmail.com"));
 
-        // Act
         GuestDTO result = guestService.update(1L, changes);
 
-        // Assert
         assertThat(result.getEmail()).isEqualTo("new@gmail.com");
         verify(guestMapper).updateEntityFromDto(changes, existing);
         verify(guestRepository).save(existing);
@@ -159,11 +136,9 @@ class GuestServiceTest {
 
     @Test
     void update_nonExistingId_throwsAndDoesNotSave() {
-        // Arrange
         GuestDTO changes = guestDto(null, "new@gmail.com");
         when(guestRepository.findById(42L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> guestService.update(42L, changes))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Гостя не знайдено");
@@ -171,29 +146,23 @@ class GuestServiceTest {
         verifyNoInteractions(guestMapper);
     }
 
-    // ===== delete =====
 
     @Test
     void delete_existingId_callsRepositoryDelete() {
-        // Act
         guestService.delete(1L);
 
-        // Assert
         verify(guestRepository).deleteById(1L);
     }
 
     @Test
     void delete_databaseError_throwsException() {
-        // Arrange
         doThrow(new RuntimeException("DB is down")).when(guestRepository).deleteById(1L);
 
-        // Act + Assert
         assertThatThrownBy(() -> guestService.delete(1L))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("DB is down");
     }
 
-    // ===== помічники для створення тестових даних =====
 
     private static Guest guest(Long id, String email) {
         Guest guest = new Guest();

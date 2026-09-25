@@ -51,11 +51,9 @@ class BookingServiceTest {
     @Captor
     private ArgumentCaptor<Booking> bookingCaptor;
 
-    // ===== create =====
 
     @Test
     void create_existingRoomAndGuest_linksThemAndSavesBooking() {
-        // Arrange
         Room room = room(1L);
         Guest guest = guest(2L);
         BookingDTO inputDto = bookingDto(null, 1L, 2L);
@@ -68,10 +66,8 @@ class BookingServiceTest {
         when(bookingRepository.save(any(Booking.class))).thenReturn(savedBooking);
         when(bookingMapper.toDto(savedBooking)).thenReturn(bookingDto(100L, 1L, 2L));
 
-        // Act
         BookingDTO result = bookingService.create(inputDto);
 
-        // Assert
         verify(bookingRepository).save(bookingCaptor.capture());
         Booking bookingPassedToSave = bookingCaptor.getValue();
         assertThat(bookingPassedToSave.getRoom()).isSameAs(room);
@@ -83,13 +79,11 @@ class BookingServiceTest {
 
     @Test
     void create_nonExistingRoom_throwsAndDoesNotSave() {
-        // Arrange
         BookingDTO inputDto = bookingDto(null, 99L, 2L);
 
         when(bookingMapper.toEntity(inputDto)).thenReturn(booking(null, null, null));
         when(roomRepository.findById(99L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> bookingService.create(inputDto))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Кімнату не знайдено");
@@ -99,25 +93,21 @@ class BookingServiceTest {
 
     @Test
     void create_nonExistingGuest_throwsAndDoesNotSave() {
-        // Arrange
         BookingDTO inputDto = bookingDto(null, 1L, 99L);
 
         when(bookingMapper.toEntity(inputDto)).thenReturn(booking(null, null, null));
         when(roomRepository.findById(1L)).thenReturn(Optional.of(room(1L)));
         when(guestRepository.findById(99L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> bookingService.create(inputDto))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Гостя не знайдено");
         verify(bookingRepository, never()).save(any());
     }
 
-    // ===== findAll =====
 
     @Test
     void findAll_bookingsExist_returnsAllBookings() {
-        // Arrange
         Booking first = booking(100L, room(1L), guest(2L));
         Booking second = booking(101L, room(1L), guest(3L));
 
@@ -125,10 +115,8 @@ class BookingServiceTest {
         when(bookingMapper.toDto(first)).thenReturn(bookingDto(100L, 1L, 2L));
         when(bookingMapper.toDto(second)).thenReturn(bookingDto(101L, 1L, 3L));
 
-        // Act
         List<BookingDTO> result = bookingService.findAll();
 
-        // Assert
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getId()).isEqualTo(100L);
         assertThat(result.get(1).getGuestId()).isEqualTo(3L);
@@ -136,51 +124,40 @@ class BookingServiceTest {
 
     @Test
     void findAll_noBookings_returnsEmptyList() {
-        // Arrange
         when(bookingRepository.findAll()).thenReturn(List.of());
 
-        // Act
         List<BookingDTO> result = bookingService.findAll();
 
-        // Assert
         assertThat(result).isEmpty();
         verifyNoInteractions(bookingMapper);
     }
 
-    // ===== findById =====
 
     @Test
     void findById_existingId_returnsBooking() {
-        // Arrange
         Booking booking = booking(100L, room(1L), guest(2L));
 
         when(bookingRepository.findById(100L)).thenReturn(Optional.of(booking));
         when(bookingMapper.toDto(booking)).thenReturn(bookingDto(100L, 1L, 2L));
 
-        // Act
         BookingDTO result = bookingService.findById(100L);
 
-        // Assert
         assertThat(result.getId()).isEqualTo(100L);
         assertThat(result.getStatus()).isEqualTo("CONFIRMED");
     }
 
     @Test
     void findById_nonExistingId_throwsNotFoundException() {
-        // Arrange
         when(bookingRepository.findById(999L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> bookingService.findById(999L))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Бронювання не знайдено");
     }
 
-    // ===== update =====
 
     @Test
     void update_existingBookingRoomAndGuest_movesToNewRoomAndSaves() {
-        // Arrange
         Room oldRoom = room(1L);
         Room newRoom = room(3L);
         Guest guest = guest(2L);
@@ -193,10 +170,8 @@ class BookingServiceTest {
         when(bookingRepository.save(any(Booking.class))).thenReturn(existing);
         when(bookingMapper.toDto(existing)).thenReturn(bookingDto(100L, 3L, 2L));
 
-        // Act
         BookingDTO result = bookingService.update(100L, changes);
 
-        // Assert
         verify(bookingMapper).updateEntityFromDto(changes, existing);
         verify(bookingRepository).save(bookingCaptor.capture());
         assertThat(bookingCaptor.getValue().getRoom()).isSameAs(newRoom);
@@ -206,11 +181,9 @@ class BookingServiceTest {
 
     @Test
     void update_nonExistingBooking_throwsAndDoesNotSave() {
-        // Arrange
         BookingDTO changes = bookingDto(null, 1L, 2L);
         when(bookingRepository.findById(999L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> bookingService.update(999L, changes))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Бронювання не знайдено");
@@ -220,14 +193,12 @@ class BookingServiceTest {
 
     @Test
     void update_nonExistingRoom_throwsAndDoesNotSave() {
-        // Arrange
         Booking existing = booking(100L, room(1L), guest(2L));
         BookingDTO changes = bookingDto(null, 99L, 2L);
 
         when(bookingRepository.findById(100L)).thenReturn(Optional.of(existing));
         when(roomRepository.findById(99L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> bookingService.update(100L, changes))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Кімнату не знайдено");
@@ -237,7 +208,6 @@ class BookingServiceTest {
 
     @Test
     void update_nonExistingGuest_throwsAndDoesNotSave() {
-        // Arrange
         Booking existing = booking(100L, room(1L), guest(2L));
         BookingDTO changes = bookingDto(null, 1L, 99L);
 
@@ -245,36 +215,29 @@ class BookingServiceTest {
         when(roomRepository.findById(1L)).thenReturn(Optional.of(room(1L)));
         when(guestRepository.findById(99L)).thenReturn(Optional.empty());
 
-        // Act + Assert
         assertThatThrownBy(() -> bookingService.update(100L, changes))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Гостя не знайдено");
         verify(bookingRepository, never()).save(any());
     }
 
-    // ===== delete =====
 
     @Test
     void delete_existingId_callsRepositoryDelete() {
-        // Act
         bookingService.delete(100L);
 
-        // Assert
         verify(bookingRepository).deleteById(100L);
     }
 
     @Test
     void delete_databaseError_throwsException() {
-        // Arrange
         doThrow(new RuntimeException("DB is down")).when(bookingRepository).deleteById(100L);
 
-        // Act + Assert
         assertThatThrownBy(() -> bookingService.delete(100L))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("DB is down");
     }
 
-    // ===== помічники для створення тестових даних =====
 
     private static Room room(Long id) {
         Room room = new Room();
