@@ -216,3 +216,7 @@ Content-Type: application/json
   "pricePerNight": 5000,
   "capacity": 2
 }
+
+### Хто я (кастомна анотація @CurrentUsername)
+GET http://localhost:8080/api/me
+Authorization: Bearer {{auth_token}}
