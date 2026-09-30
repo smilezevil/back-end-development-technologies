@@ -1,10 +1,10 @@
 package com.smilezevil.hotelbooking.controller;
 
+import com.smilezevil.hotelbooking.annotation.PostCreated;
 import com.smilezevil.hotelbooking.dto.BookingDTO;
 import com.smilezevil.hotelbooking.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,9 +20,9 @@ public class BookingController {
     private final BookingService bookingService;
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('admin')")
-    @PostMapping
-    public ResponseEntity<BookingDTO> createBooking(@Valid @RequestBody BookingDTO dto) {
-        return new ResponseEntity<>(bookingService.create(dto), HttpStatus.CREATED);
+    @PostCreated
+    public BookingDTO createBooking(@Valid @RequestBody BookingDTO dto) {
+        return bookingService.create(dto);
     }
 
     @GetMapping
