@@ -1,5 +1,7 @@
 package com.smilezevil.hotelbooking.service;
 
+import com.smilezevil.hotelbooking.annotation.RetryOnFailure;
+import com.smilezevil.hotelbooking.annotation.NormalizeInput;
 import com.smilezevil.hotelbooking.dto.HotelDTO;
 import com.smilezevil.hotelbooking.entity.Hotel;
 import com.smilezevil.hotelbooking.mapper.HotelMapper;
@@ -17,28 +19,28 @@ public class HotelService {
     private final HotelRepository hotelRepository;
     private final HotelMapper hotelMapper;
 
-    // Створення (Create)
+    @NormalizeInput
     public HotelDTO create(HotelDTO hotelDTO) {
         Hotel hotel = hotelMapper.toEntity(hotelDTO);
         Hotel savedHotel = hotelRepository.save(hotel);
         return hotelMapper.toDto(savedHotel);
     }
 
-    // Читання всіх (Read)
+    @RetryOnFailure
     public List<HotelDTO> findAll() {
         return hotelRepository.findAll().stream()
                 .map(hotelMapper::toDto)
                 .collect(Collectors.toList());
     }
 
-    // Читання одного (Read)
+    @RetryOnFailure
     public HotelDTO findById(Long id) {
         return hotelRepository.findById(id)
                 .map(hotelMapper::toDto)
                 .orElseThrow(() -> new RuntimeException("Готель з ID " + id + " не знайдено"));
     }
 
-    // Оновлення (Update)
+    @NormalizeInput
     public HotelDTO update(Long id, HotelDTO hotelDTO) {
         Hotel existingHotel = hotelRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Готель з ID " + id + " не знайдено"));
@@ -48,7 +50,6 @@ public class HotelService {
         return hotelMapper.toDto(updatedHotel);
     }
 
-    // Видалення (Delete)
     public void delete(Long id) {
         hotelRepository.deleteById(id);
     }
