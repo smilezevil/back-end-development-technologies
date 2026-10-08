@@ -220,3 +220,21 @@ Content-Type: application/json
 ### Хто я (кастомна анотація @CurrentUsername)
 GET http://localhost:8080/api/me
 Authorization: Bearer {{auth_token}}
+
+### ================= ЛАБА 4: AOP =================
+
+### @NormalizeInput — гість з "брудним" вводом (потрібен admin_token від bob)
+POST http://localhost:8080/api/guests
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "firstName": "  Ірина  ",
+  "lastName": "Коваль",
+  "email": "  Iryna.Koval@Gmail.COM ",
+  "phone": " +380671234567 "
+}
+
+### @MaskSensitiveData — у списку гостей email і телефон замасковані
+GET http://localhost:8080/api/guests
+Authorization: Bearer {{admin_token}}
