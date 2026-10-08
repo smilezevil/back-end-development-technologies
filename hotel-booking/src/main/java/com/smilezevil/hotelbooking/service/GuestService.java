@@ -1,5 +1,7 @@
 package com.smilezevil.hotelbooking.service;
 
+import com.smilezevil.hotelbooking.annotation.MaskSensitiveData;
+import com.smilezevil.hotelbooking.annotation.NormalizeInput;
 import com.smilezevil.hotelbooking.dto.GuestDTO;
 import com.smilezevil.hotelbooking.entity.Guest;
 import com.smilezevil.hotelbooking.mapper.GuestMapper;
@@ -17,13 +19,19 @@ public class GuestService {
     private final GuestRepository guestRepository;
     private final GuestMapper guestMapper;
 
+    @NormalizeInput(lowercase = "email")
     public GuestDTO create(GuestDTO guestDTO) {
         Guest guest = guestMapper.toEntity(guestDTO);
         return guestMapper.toDto(guestRepository.save(guest));
     }
 
+    @MaskSensitiveData
     public List<GuestDTO> findAll() {
         return guestRepository.findAll().stream().map(guestMapper::toDto).collect(Collectors.toList());
+    }
+
+    public List<GuestDTO> findAllForReport() {
+        return this.findAll();
     }
 
     public GuestDTO findById(Long id) {
@@ -31,6 +39,7 @@ public class GuestService {
                 .orElseThrow(() -> new RuntimeException("Гостя не знайдено"));
     }
 
+    @NormalizeInput(lowercase = "email")
     public GuestDTO update(Long id, GuestDTO guestDTO) {
         Guest existingGuest = guestRepository.findById(id).orElseThrow(() -> new RuntimeException("Гостя не знайдено"));
         guestMapper.updateEntityFromDto(guestDTO, existingGuest);
