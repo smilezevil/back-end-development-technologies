@@ -1,5 +1,6 @@
 package com.smilezevil.hotelbooking.service;
 
+import com.smilezevil.hotelbooking.annotation.RetryOnFailure;
 import com.smilezevil.hotelbooking.dto.RoomDTO;
 import com.smilezevil.hotelbooking.entity.Hotel;
 import com.smilezevil.hotelbooking.entity.Room;
@@ -28,10 +29,12 @@ public class RoomService {
         return roomMapper.toDto(roomRepository.save(room));
     }
 
+    @RetryOnFailure
     public List<RoomDTO> findAll() {
         return roomRepository.findAll().stream().map(roomMapper::toDto).collect(Collectors.toList());
     }
 
+    @RetryOnFailure
     public RoomDTO findById(Long id) {
         return roomRepository.findById(id).map(roomMapper::toDto)
                 .orElseThrow(() -> new RuntimeException("Кімнату не знайдено"));
