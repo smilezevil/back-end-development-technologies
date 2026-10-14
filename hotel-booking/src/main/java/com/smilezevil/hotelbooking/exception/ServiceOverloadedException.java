@@ -1,4 +1,8 @@
 package com.smilezevil.hotelbooking.exception;
 
-public class ServiceOverloadedException {
+public class ServiceOverloadedException extends RuntimeException {
+
+    public ServiceOverloadedException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
