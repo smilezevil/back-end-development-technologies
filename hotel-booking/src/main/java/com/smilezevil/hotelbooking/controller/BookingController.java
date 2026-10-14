@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.smilezevil.hotelbooking.dto.BookingSummaryDTO;
+import com.smilezevil.hotelbooking.service.BookingSummaryService;
 
 import java.util.List;
 import java.util.Map;
@@ -18,6 +20,7 @@ import java.util.Map;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final BookingSummaryService bookingSummaryService;
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('admin')")
     @PostCreated
@@ -33,6 +36,11 @@ public class BookingController {
     @GetMapping("/{id}")
     public ResponseEntity<BookingDTO> getBookingById(@PathVariable Long id) {
         return ResponseEntity.ok(bookingService.findById(id));
+    }
+
+    @GetMapping("/{id}/summary")
+    public BookingSummaryDTO getBookingSummary(@PathVariable Long id) {
+        return bookingSummaryService.getSummary(id);
     }
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('admin')")
