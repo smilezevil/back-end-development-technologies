@@ -22,6 +22,7 @@ public class BookingService {
     private final RoomRepository roomRepository;
     private final GuestRepository guestRepository;
     private final BookingMapper bookingMapper;
+    private final NotificationService notificationService;
 
     public BookingDTO create(BookingDTO bookingDTO) {
         Booking booking = bookingMapper.toEntity(bookingDTO);
@@ -30,7 +31,10 @@ public class BookingService {
 
         booking.setRoom(room);
         booking.setGuest(guest);
-        return bookingMapper.toDto(bookingRepository.save(booking));
+        BookingDTO saved = bookingMapper.toDto(bookingRepository.save(booking));
+
+        notificationService.sendBookingConfirmation(saved.getId(), guest.getEmail());
+        return saved;
     }
 
     public List<BookingDTO> findAll() {
