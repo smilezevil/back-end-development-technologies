@@ -45,6 +45,9 @@ class BookingServiceTest {
     @Mock
     private BookingMapper bookingMapper;
 
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private BookingService bookingService;
 
@@ -75,6 +78,7 @@ class BookingServiceTest {
         assertThat(bookingPassedToSave.getCheckInDate()).isEqualTo(LocalDate.of(2026, 10, 10));
 
         assertThat(result.getId()).isEqualTo(100L);
+        verify(notificationService).sendBookingConfirmation(100L, "guest2@gmail.com");
     }
 
     @Test
