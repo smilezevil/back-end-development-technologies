@@ -238,3 +238,57 @@ Content-Type: application/json
 ### @MaskSensitiveData — у списку гостей email і телефон замасковані
 GET http://localhost:8080/api/guests
 Authorization: Bearer {{admin_token}}
+
+### ================= ЛАБА 5: ASYNC =================
+
+### 5.1 Нове бронювання, лист у фоні
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2026-12-01",
+  "checkOutDate": "2026-12-05",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+> {%
+    client.global.set("booking_id", response.body.id);
+%}
+
+### 5.2 Зведення: рахунок і курс паралельно
+GET http://localhost:8080/api/bookings/{{booking_id}}/summary
+Authorization: Bearer {{auth_token}}
+
+### 5.3 Гість з адресою, яку SMTP відхилить
+POST http://localhost:8080/api/guests
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "firstName": "Тест",
+  "lastName": "Невдалий",
+  "email": "broken@hotel.invalid",
+  "phone": "+380500000000"
+}
+
+> {%
+    client.global.set("invalid_guest_id", response.body.id);
+%}
+
+### 5.4 Бронювання для цього гостя
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": {{invalid_guest_id}},
+  "checkInDate": "2026-12-10",
+  "checkOutDate": "2026-12-12",
+  "status": "CONFIRMED",
+  "totalPrice": 2700.00
+}
