@@ -292,3 +292,49 @@ Content-Type: application/json
   "status": "CONFIRMED",
   "totalPrice": 2700.00
 }
+
+### ================= 6. QUARTZ (лаба 6) =================
+
+### 6.1 Зависле PENDING-бронювання, заїзд уже минув
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2026-10-01",
+  "checkOutDate": "2026-10-03",
+  "status": "PENDING",
+  "totalPrice": 2700.00
+}
+
+> {%
+    client.global.set("stale_booking_id", response.body.id);
+%}
+
+### 6.2 Статус зависшого бронювання
+GET http://localhost:8080/api/bookings/{{stale_booking_id}}
+Authorization: Bearer {{auth_token}}
+
+### 6.3 Підтверджене бронювання, виїзд уже минув
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2026-10-05",
+  "checkOutDate": "2026-10-08",
+  "status": "CONFIRMED",
+  "totalPrice": 4050.00
+}
+
+> {%
+    client.global.set("finished_booking_id", response.body.id);
+%}
+
+### 6.4 Статус завершеного проживання
+GET http://localhost:8080/api/bookings/{{finished_booking_id}}
+Authorization: Bearer {{auth_token}}
