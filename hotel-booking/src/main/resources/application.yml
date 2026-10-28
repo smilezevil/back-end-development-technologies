@@ -1,0 +1,61 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: hotel-booking
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hotel_booking
+    username: smilezevil
+    password: ''
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      "[hibernate.format_sql]": true
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090/realms/course-realm
+      client:
+        registration:
+          keycloak:
+            client-id: backend-app
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:9090/realms/course-realm
+
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never
+    scheduler-name: hotel-booking-scheduler
+    overwrite-existing-jobs: true
+    wait-for-jobs-to-complete-on-shutdown: true
+    properties:
+      org:
+        quartz:
+          jobStore:
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            tablePrefix: QRTZ_
+            misfireThreshold: 60000
+          threadPool:
+            threadCount: 3
+
+exchange-rate:
+  api-available: true
+
+booking:
+  summary:
+    timeout-ms: 3000
