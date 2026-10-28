@@ -1,136 +1,95 @@
-# Лабораторна робота №6 — Quartz Scheduler
+# Лабораторна робота №7 — Multi-module Maven
 
-Проєкт **hotel-booking**: Spring Boot 3.3.5, Java 21, PostgreSQL 16, Liquibase, Keycloak, Quartz 2.3.2.
+Проєкт **hotel-platform**: один репозиторій і одна збірка, яка охоплює кілька незалежних сервісів.
+Кожен сервіс можна окремо зібрати, протестувати, запустити й розгорнути.
+Spring Boot 3.3.5, Java 21. Попередні лабораторні роботи лежать у своїх гілках (`lab2` … `lab6`).
 
-## Що реалізовано
-
-Регулярні завдання виконуються за розкладом, який зберігається в PostgreSQL (таблиці `QRTZ_*`).
-Після перезапуску чи розгортання нової версії завдання не зникають і не дублюються.
-
-### Завдання (Jobs)
-
-| Завдання | Ключ (group.name) | Що робить | Стратегія у разі збою |
-|---|---|---|---|
-| `BookingCleanupJob` | `maintenance.bookingCleanupJob` | `PENDING`-бронювання, дата заїзду яких минула, переводить у `CANCELLED` | Обмежений повтор: `refireImmediately`, поки спроб менше за `maxRetries`, далі чекає наступного запуску |
-| `StayCompletionJob` | `lifecycle.stayCompletionJob` | `CONFIRMED`-бронювання, дата виїзду яких минула, переводить у `COMPLETED` | Помилка фіксується в лозі, завдання чекає наступного запланованого запуску |
-
-Обидва завдання позначені `@DisallowConcurrentExecution`, тож наступний запуск чекає завершення попереднього.
-Завдання «легкі»: вони лише читають параметри з `JobDataMap` і роблять один виклик `BookingMaintenanceService`.
-Межа транзакції — `@Transactional` на методах сервісу.
-
-### Тригери
-
-| Тригер | Тип | Розклад | Часовий пояс | Перевизначає | Misfire |
-|---|---|---|---|---|---|
-| `maintenance.bookingCleanupNightlyTrigger` | Cron | `0 0 3 * * ?` — щоночі о 03:00 | `Europe/Kyiv` | `maxRetries = 5` | `DO_NOTHING` |
-| `maintenance.bookingCleanupEveryMinuteTrigger` | Simple | щохвилини | — | `graceDays = 0` | `RESCHEDULE_NEXT_WITH_REMAINING_COUNT` |
-| `lifecycle.stayCompletionTrigger` | Cron | `0 */2 * * * ?` — кожні 2 хв (для демонстрації) | `Europe/Kyiv` | — | `FIRE_ONCE_NOW` |
-
-### Параметри (JobDataMap)
-
-| Завдання | Значення за замовчуванням (у `JobDetail`) |
-|---|---|
-| `BookingCleanupJob` | `graceDays = 1`, `maxRetries = 2` |
-| `StayCompletionJob` | `graceDays = 0` |
-
-Quartz об'єднує параметри завдання й тригера (`getMergedJobDataMap()`), і значення тригера має пріоритет.
-Якщо ключа немає, він написаний з помилкою, має не той тип або від'ємне значення, `JobParameters` кидає `JobExecutionException` з поясненням, і сервіс не викликається.
-
-## Відповідність пунктам завдання
-
-| № | Вимога | Де реалізовано |
-|---|---|---|
-| 1 | Схема таблиць Quartz для своєї БД | Офіційний `org/quartz/impl/jdbcjobstore/tables_postgres.sql` з `quartz-2.3.2.jar` → `db/changelog/migrations/002-quartz-tables.sql` (без `DROP TABLE` і `COMMIT`) |
-| 2 | Створення схеми через Liquibase | `002-quartz-schema.xml`, changeset `005-create-quartz-tables` із `rollback`; підключено в `db.changelog-master.xml` |
-| 3 | Quartz JDBC job store | `application.properties`: `spring.quartz.job-store-type=jdbc`, `initialize-schema=never`, `PostgreSQLDelegate`, `overwrite-existing-jobs=true` |
-| 4 | Два Job, `JobDetail` і `Trigger` в одному `@Configuration`; один Job має два тригери | `config/QuartzConfig.java`; `BookingCleanupJob` має нічний і щохвилинний тригери |
-| 5 | Параметри через `JobDataMap` | Значення за замовчуванням у `JobDetail`, перевизначення в тригерах, читання через `JobParameters` |
-| 6 | Ідемпотентність | `BookingMaintenanceService`: один `UPDATE` з умовою на поточний статус; повторний запуск змінює 0 рядків |
-| 7 | Стратегія у разі збою | `BookingCleanupJob` — обмежений повтор, `StayCompletionJob` — фіксація помилки й очікування наступного запуску |
-
-## Сценарії → тести
-
-| Сценарій | Тести |
-|---|---|
-| Jobs і тригери оголошуються в одному місці | `QuartzConfigTest`: `triggers_createdByConfig_pointToTheirJobByJobKey`, `jobsAndTriggers_createdByConfig_haveExplicitNameAndGroup` |
-| Параметри тригера мають пріоритет | `QuartzConfigTest.mergedJobDataMap_triggerOverridesOneKey_triggerWinsAndOtherKeysKeepJobDefaults` (злиття через `JobExecutionContextImpl`, як у Quartz) |
-| Jobs «легкі» | `BookingCleanupJobTest`: `execute_triggerOverridesGraceDays_callsServiceOnceWithTriggerValue`, `transactionBoundary_isOnServiceMethodNotOnJob`; `StayCompletionJobTest.execute_defaultParameters_callsServiceOnce` |
-| Явна помилка при невідповідності параметрів | `BookingCleanupJobTest`: `execute_requiredKeyMissing_…`, `execute_keyMisspelledInTrigger_…`, `execute_negativeGraceDays_…`; `StayCompletionJobTest.execute_keyFromAnotherJob_…` |
-| Паралельне виконання заборонено | `DisallowConcurrentExecutionTest` — справжній планувальник: з анотацією запуски йдуть по черзі, без неї накладаються |
-| Кожен тригер має свою misfire-інструкцію | `QuartzConfigTest.triggers_createdByConfig_haveExplicitMisfireInstruction` |
-| Cron не залежить від часового поясу сервера | `QuartzConfigTest`: `cronTriggers_createdByConfig_useKyivTimeZone`, `nightlyTrigger_winterDate_firesAt3amKyivTimeRegardlessOfServerZone`, `timeZone_unknownId_silentlyFallsBackToGmt` |
-| Повторний запуск безпечний (IT) | `BookingMaintenanceServiceIT` — два запуски поспіль на справжній PostgreSQL, другий змінює 0 рядків |
-| Невдале виконання обробляється цілеспрямовано | `BookingCleanupJobTest`: `execute_serviceFailsAndRetriesLeft_…`, `execute_serviceKeepsFailing_givesUpAfterMaxRetriesWithoutInfiniteLoop`; `StayCompletionJobTest.execute_serviceFails_recordsErrorAndWaitsForNextScheduledRun` |
-| Розклад зберігається в БД через Liquibase | `002-quartz-schema.xml` + `spring.quartz.jdbc.initialize-schema=never` |
-
-## Нові файли лаби 6
+## Структура
 
 ```
-hotel-booking/src/main/java/com/smilezevil/hotelbooking/
-  config/QuartzConfig.java
-  job/BookingCleanupJob.java
-  job/StayCompletionJob.java
-  job/JobParameters.java
-  service/BookingMaintenanceService.java
-  repository/BookingRepository.java
-hotel-booking/src/main/resources/
-  application.properties
-  db/changelog/db.changelog-master.xml
-  db/changelog/migrations/002-quartz-schema.xml
-  db/changelog/migrations/002-quartz-tables.sql
-hotel-booking/src/test/java/com/smilezevil/hotelbooking/
-  config/QuartzConfigTest.java
-  job/BookingCleanupJobTest.java
-  job/StayCompletionJobTest.java
-  job/DisallowConcurrentExecutionTest.java
-  job/JobContexts.java
-  service/BookingMaintenanceServiceIT.java
+back-end-development-technologies/      кореневий POM hotel-platform (packaging pom)
+├── pom.xml
+├── mvnw, .mvn/
+├── common/                  лише спільні DTO (records), без main і без Spring Boot plugin
+├── hotel-booking/           застосунок із лаб 1–6
+├── exchange-rate-service/   курси гривні та конвертація
+└── notification-service/    сповіщення гостям, virtual threads
+```
+
+| Модуль | Тип | Порт | Main-клас | Призначення |
+|---|---|---|---|---|
+| `common` | бібліотека (jar) | — | — | DTO: `ApiError`, `ExchangeRateResponse`, `ConversionResponse`, `NotificationRequest`, `NotificationReceipt` |
+| `hotel-booking` | сервіс | 8080 | `HotelBookingApplication` | Готелі, кімнати, гості, бронювання, Keycloak, Quartz |
+| `exchange-rate-service` | сервіс | 8081 | `ExchangeRateServiceApplication` | `GET /rates/{currency}`, `GET /rates/{currency}/convert?amountUah=` |
+| `notification-service` | сервіс | 8082 | `NotificationServiceApplication` | `POST /notifications`, `GET /notifications` |
+
+Кожен сервіс має власні `main`, `application.yml`, порт, тести, `Dockerfile` і `.dockerignore`.
+
+## Відповідність сценаріям
+
+| Сценарій | Як виконано |
+|---|---|
+| 1. Кореневий POM з `packaging pom`; у `<modules>` усі модулі; `<parent>` кожного модуля вказує на кореневий POM; `mvn verify` з кореня зелений | `pom.xml` у корені; у кожному модулі `<parent>` = `com.smilezevil:hotel-platform` з `relativePath ../pom.xml`; `./mvnw verify` → `BUILD SUCCESS` для 5 модулів |
+| 2. Спільна залежність оголошена в кореневому `<dependencies>`, а не в модулях | `spring-boot-starter-test` (scope `test`) лише в кореневому POM; у POM модулів його немає |
+| 3. Кожен сервіс має свій main-клас, свій `application.yml` і свій порт; Spring Boot plugin у власному POM | Порти 8080 / 8081 / 8082; `spring-boot-maven-plugin` у `pom.xml` кожного сервісу; у кореневому POM і в `common` його немає |
+| 4. Жоден сервіс не залежить від іншого; спільний лише модуль `common` із DTO | `dependency:tree`: `hotel-booking` не має наших залежностей, `exchange-rate-service` і `notification-service` залежать тільки від `common` |
+
+## Збірка і тести
+
+Збирати потрібно з JDK 21, бо Lombok у Spring Boot 3.3.5 не підтримує компілятор JDK 25:
+
+```
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+```
+
+Усі модулі разом:
+
+```
+./mvnw verify
+```
+
+Лише один сервіс (разом із `common`, від якого він залежить):
+
+```
+./mvnw -pl notification-service -am verify
+```
+
+Перевірка, що сервіси не залежать один від одного:
+
+```
+./mvnw -DskipTests package dependency:tree -Dincludes=com.smilezevil
 ```
 
 ## Запуск
 
-Потрібно: Java 21, PostgreSQL 16 з базою `hotel_booking`, Keycloak 26 на порту 9090 (realm `course-realm`, client `backend-app`).
+Кожен сервіс запускається окремо, з IntelliJ або як fat jar:
 
 ```
-brew services start postgresql@16
-cd <папка-keycloak>/bin && ./kc.sh start-dev --http-port 9090
-cd hotel-booking && ./mvnw spring-boot:run
+java -jar exchange-rate-service/target/exchange-rate-service-1.0.0-SNAPSHOT.jar
+java -jar notification-service/target/notification-service-1.0.0-SNAPSHOT.jar
 ```
 
-Під час старту Liquibase створює таблиці `QRTZ_*`, а в лозі з'являється
-`Using job-store 'org.springframework.scheduling.quartz.LocalDataSourceJobStore' - which supports persistence`.
+`exchange-rate-service` і `notification-service` не потребують бази даних чи Keycloak.
+`hotel-booking` потребує PostgreSQL (`hotel_booking`) і Keycloak на порту 9090.
 
-## Тести
+Запити до нових сервісів лежать у `services-api.http`, до `hotel-booking` — у `hotel-booking/hotel-api.http`.
 
-Unit-тести (класи `*IT` Maven за замовчуванням пропускає):
-
-```
-./mvnw test
-```
-
-Інтеграційний тест ідемпотентності (потрібна запущена PostgreSQL, дані після тесту відкочуються):
+## Docker
 
 ```
-./mvnw test -Dtest=BookingMaintenanceServiceIT
+./mvnw -DskipTests package
+docker build -t notification-service ./notification-service
+docker run --rm -p 8082:8082 notification-service
 ```
 
-## Перевірка розкладу в базі
+`Dockerfile` копіює вже зібраний jar в образ `eclipse-temurin:21-jre` і запускає його не від root.
+`.dockerignore` пропускає в контекст збірки лише `target/*.jar`.
 
-```sql
-select job_name, job_group, job_class_name, is_nonconcurrent from qrtz_job_details;
-select trigger_name, trigger_group, trigger_type, misfire_instr,
-       to_timestamp(next_fire_time / 1000) as next_fire
-from qrtz_triggers order by trigger_name;
-select trigger_name, cron_expression, time_zone_id from qrtz_cron_triggers;
-```
+## Virtual threads
 
-Очікувано: 2 завдання з `is_nonconcurrent = true`, 3 тригери, `time_zone_id = Europe/Kyiv`.
-Після перезапуску застосунку тригерів так само 3, дублікатів немає.
+У `notification-service` увімкнено `spring.threads.virtual.enabled: true`:
 
-## Демонстрація
+- Tomcat обробляє кожен запит у virtual thread (у лозі: `handled on VirtualThread[...]`);
+- `applicationTaskExecutor` стає `SimpleAsyncTaskExecutor` на virtual threads.
 
-Файл `hotel-booking/hotel-api.http`, розділ «6. QUARTZ»:
-
-1. **6.1** створює `PENDING`-бронювання з датою заїзду в минулому. Протягом хвилини лог показує `Cancelled 1 …`, а наступного запуску `Cancelled 0 …`.
-2. **6.2** показує, що статус став `CANCELLED`.
-3. **6.3** і **6.4** роблять те саме для завершення проживання: статус стає `COMPLETED`.
+Тест `NotificationServiceApplicationTest.applicationTaskExecutor_virtualThreadsEnabled_runsTasksOnVirtualThreads` це перевіряє.
