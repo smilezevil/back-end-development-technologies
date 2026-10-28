@@ -1,0 +1,29 @@
+### exchange-rate-service: курс EUR
+GET http://localhost:8081/rates/EUR
+
+### exchange-rate-service: 1200 грн у EUR
+GET http://localhost:8081/rates/EUR/convert?amountUah=1200
+
+### exchange-rate-service: невідома валюта (404)
+GET http://localhost:8081/rates/XYZ
+
+### notification-service: нове сповіщення (202)
+POST http://localhost:8082/notifications
+Content-Type: application/json
+
+{"recipient": "guest@gmail.com", "subject": "Booking 4", "message": "Your booking is confirmed"}
+
+### notification-service: відхилений отримувач (422)
+POST http://localhost:8082/notifications
+Content-Type: application/json
+
+{"recipient": "broken@hotel.invalid", "subject": "Booking 5", "message": "Hi"}
+
+### notification-service: історія
+GET http://localhost:8082/notifications
+
+### health: exchange-rate-service
+GET http://localhost:8081/actuator/health
+
+### health: notification-service
+GET http://localhost:8082/actuator/health
