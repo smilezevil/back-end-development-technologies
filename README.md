@@ -1,95 +1,96 @@
-# Лабораторна робота №7 — Multi-module Maven
+# Лабораторна робота №8 — Message brokers (Kafka)
 
-Проєкт **hotel-platform**: один репозиторій і одна збірка, яка охоплює кілька незалежних сервісів.
-Кожен сервіс можна окремо зібрати, протестувати, запустити й розгорнути.
-Spring Boot 3.3.5, Java 21. Попередні лабораторні роботи лежать у своїх гілках (`lab2` … `lab6`).
-
-## Структура
+Два сервіси платформи **hotel-platform** взаємодіють через брокер повідомлень Apache Kafka.
+Відправник не чекає на отримувача, і жодна подія не губиться, навіть якщо отримувач тимчасово недоступний.
+Попередні лабораторні роботи лежать у своїх гілках (`lab2` … `lab7`).
 
 ```
-back-end-development-technologies/      кореневий POM hotel-platform (packaging pom)
-├── pom.xml
-├── mvnw, .mvn/
-├── common/                  лише спільні DTO (records), без main і без Spring Boot plugin
-├── hotel-booking/           застосунок із лаб 1–6
-├── exchange-rate-service/   курси гривні та конвертація
-└── notification-service/    сповіщення гостям, virtual threads
+hotel-booking (producer, :8080)  ──►  Kafka, topic hotel.booking-events  ──►  notification-service (consumer, :8082)
+   запускається з IDE                     compose.yml, 3 partitions               запускається в Docker
+   localhost:9094                          kafka:9092 / localhost:9094            kafka:9092
 ```
 
-| Модуль | Тип | Порт | Main-клас | Призначення |
-|---|---|---|---|---|
-| `common` | бібліотека (jar) | — | — | DTO: `ApiError`, `ExchangeRateResponse`, `ConversionResponse`, `NotificationRequest`, `NotificationReceipt` |
-| `hotel-booking` | сервіс | 8080 | `HotelBookingApplication` | Готелі, кімнати, гості, бронювання, Keycloak, Quartz |
-| `exchange-rate-service` | сервіс | 8081 | `ExchangeRateServiceApplication` | `GET /rates/{currency}`, `GET /rates/{currency}/convert?amountUah=` |
-| `notification-service` | сервіс | 8082 | `NotificationServiceApplication` | `POST /notifications`, `GET /notifications` |
+Прямих HTTP-викликів між `hotel-booking` і `notification-service` немає.
+Спільний у них лише модуль `common` з контрактом події (`BookingEvent`, `BookingEventType`, `BookingTopics`).
 
-Кожен сервіс має власні `main`, `application.yml`, порт, тести, `Dockerfile` і `.dockerignore`.
+## Бізнес-дії
 
-## Відповідність сценаріям
+| Бізнес-дія | Endpoint у `hotel-booking` | Подія | Результат у `notification-service` |
+|---|---|---|---|
+| Створення бронювання | `POST /api/bookings` | `CREATED` | `Booking #N confirmed: <дати>` у `GET /notifications` |
+| Зміна бронювання | `PUT /api/bookings/{id}` | `UPDATED` | `Booking #N changed: <дати>` |
+| Скасування бронювання | `DELETE /api/bookings/{id}` | `CANCELLED` | `Booking #N cancelled` |
 
-| Сценарій | Як виконано |
+Усі події йдуть в один topic `hotel.booking-events` з ключем `bookingId`,
+тому події одного бронювання потрапляють в один partition і зберігають порядок.
+
+## Як це працює
+
+**Producer (`hotel-booking`):**
+
+- `BookingService` (`@Transactional`) після успішної дії публікує Spring-подію `BookingEvent` через `ApplicationEventPublisher` і нічого не знає про Kafka.
+- `BookingEventKafkaPublisher` слухає її через `@TransactionalEventListener(phase = AFTER_COMMIT)` і надсилає в Kafka **лише після commit**. Якщо дія впала або транзакцію відкотили, подія не надсилається.
+- `acks: all`: повідомлення вважається відправленим, коли брокер його прийняв. `max.block.ms: 5000`: якщо брокер недоступний, запит не висить довше 5 секунд.
+
+**Consumer (`notification-service`):**
+
+- `BookingEventListener` — `@KafkaListener` у групі `notification-service`. Offset фіксується після успішної обробки.
+- `ErrorHandlingDeserializer` + `JsonDeserializer`: тип береться з конфігурації (`BookingEvent`), биткі повідомлення не блокують partition.
+- Ідемпотентність: `NotificationService.notifyAbout` пам'ятає оброблені `eventId`, тож повторна доставка тієї самої події нічого не змінює.
+- `auto-offset-reset: earliest`: нова група читає topic з початку, тому події, надіслані до першого запуску consumer'а, теж обробляються.
+
+**Адреса брокера** в обох сервісах: `${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}`.
+З IDE використовується `localhost:9094`, а в Docker (`compose.yml`) — `KAFKA_BOOTSTRAP_SERVERS=kafka:9092`, тобто ім'я сервісу з compose.
+
+## Відповідність завданню
+
+| № | Вимога | Де реалізовано |
+|---|---|---|
+| 1 | Брокер описаний у `compose.yml` | `compose.yml`: `apache/kafka:3.9.0` у режимі KRaft, listeners `INTERNAL://kafka:9092` і `EXTERNAL://localhost:9094`, healthcheck |
+| 2 | Повідомлення передаються через брокер, сервіси не використовують класи один одного | `hotel-booking` → topic `hotel.booking-events` → `notification-service`; спільні лише DTO з `common.event` |
+| 3 | Якщо отримувач не працює, дані не втрачаються | Kafka зберігає повідомлення, а група `notification-service` після запуску продовжує зі свого committed offset |
+
+## Сценарії → як перевірити
+
+| Сценарій | Перевірка |
 |---|---|
-| 1. Кореневий POM з `packaging pom`; у `<modules>` усі модулі; `<parent>` кожного модуля вказує на кореневий POM; `mvn verify` з кореня зелений | `pom.xml` у корені; у кожному модулі `<parent>` = `com.smilezevil:hotel-platform` з `relativePath ../pom.xml`; `./mvnw verify` → `BUILD SUCCESS` для 5 модулів |
-| 2. Спільна залежність оголошена в кореневому `<dependencies>`, а не в модулях | `spring-boot-starter-test` (scope `test`) лише в кореневому POM; у POM модулів його немає |
-| 3. Кожен сервіс має свій main-клас, свій `application.yml` і свій порт; Spring Boot plugin у власному POM | Порти 8080 / 8081 / 8082; `spring-boot-maven-plugin` у `pom.xml` кожного сервісу; у кореневому POM і в `common` його немає |
-| 4. Жоден сервіс не залежить від іншого; спільний лише модуль `common` із DTO | `dependency:tree`: `hotel-booking` не має наших залежностей, `exchange-rate-service` і `notification-service` залежать тільки від `common` |
+| 1. Одна дія → одна подія → помітний результат | `hotel-api.http` 8.1–8.3 → у лозі `PUBLISHED` / `RECEIVED` → `GET http://localhost:8082/notifications` (8.5) |
+| 2. Дія з помилкою не публікує подію; публікація після commit | Запит 8.4 (неіснуюча кімната) → немає `PUBLISHING`; тести `BookingEventAfterCommitTest` і `BookingServiceTest.*_throwsAndPublishesNothing` |
+| 3. Немає HTTP між сервісами, consumer не залежить від класів producer'а | `notification-service/pom.xml` залежить лише від `common`; `dependency:tree -Dincludes=com.smilezevil` |
+| 4. Consumer зупинено → producer відповідає успішно → після старту обидві події оброблено | `docker compose stop notification-service`, двічі 8.1 (`201`), `kafka-consumer-groups --describe` показує `LAG 2`, `docker compose start notification-service` → `RECEIVED` ×2, `LAG 0` |
+| 5. Повторна подія не змінює результат (unit-тест) | `BookingEventListenerTest.onBookingEvent_sameEventDeliveredTwice_resultStaysAsAfterFirstDelivery` |
+| 6. Адреса брокера зі змінної середовища; у Docker — ім'я сервісу | `application.yml` обох сервісів, `compose.yml`; у лозі consumer'а `bootstrap.servers = [kafka:9092]` |
 
-## Збірка і тести
+## Запуск
 
-Збирати потрібно з JDK 21, бо Lombok у Spring Boot 3.3.5 не підтримує компілятор JDK 25:
+Потрібно: Docker Desktop, JDK 21, а для `hotel-booking` ще PostgreSQL (`hotel_booking`) і Keycloak на порту 9090.
 
 ```
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+./mvnw -DskipTests package
+docker compose up -d --build
+docker compose ps
 ```
 
-Усі модулі разом:
+Після цього `hotel-booking` запускається з IDE (`HotelBookingApplication`), а запити лежать у розділі «8. KAFKA» файлу `hotel-booking/hotel-api.http`.
+
+Переглянути topic і consumer group:
+
+```
+docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic hotel.booking-events --from-beginning --property print.key=true --property print.partition=true --timeout-ms 10000
+docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group notification-service
+```
+
+## Тести
 
 ```
 ./mvnw verify
 ```
 
-Лише один сервіс (разом із `common`, від якого він залежить):
-
-```
-./mvnw -pl notification-service -am verify
-```
-
-Перевірка, що сервіси не залежать один від одного:
-
-```
-./mvnw -DskipTests package dependency:tree -Dincludes=com.smilezevil
-```
-
-## Запуск
-
-Кожен сервіс запускається окремо, з IntelliJ або як fat jar:
-
-```
-java -jar exchange-rate-service/target/exchange-rate-service-1.0.0-SNAPSHOT.jar
-java -jar notification-service/target/notification-service-1.0.0-SNAPSHOT.jar
-```
-
-`exchange-rate-service` і `notification-service` не потребують бази даних чи Keycloak.
-`hotel-booking` потребує PostgreSQL (`hotel_booking`) і Keycloak на порту 9090.
-
-Запити до нових сервісів лежать у `services-api.http`, до `hotel-booking` — у `hotel-booking/hotel-api.http`.
-
-## Docker
-
-```
-./mvnw -DskipTests package
-docker build -t notification-service ./notification-service
-docker run --rm -p 8082:8082 notification-service
-```
-
-`Dockerfile` копіює вже зібраний jar в образ `eclipse-temurin:21-jre` і запускає його не від root.
-`.dockerignore` пропускає в контекст збірки лише `target/*.jar`.
-
-## Virtual threads
-
-У `notification-service` увімкнено `spring.threads.virtual.enabled: true`:
-
-- Tomcat обробляє кожен запит у virtual thread (у лозі: `handled on VirtualThread[...]`);
-- `applicationTaskExecutor` стає `SimpleAsyncTaskExecutor` на virtual threads.
-
-Тест `NotificationServiceApplicationTest.applicationTaskExecutor_virtualThreadsEnabled_runsTasksOnVirtualThreads` це перевіряє.
+| Тест | Що перевіряє |
+|---|---|
+| `BookingServiceTest` | Події `CREATED` / `UPDATED` / `CANCELLED` публікуються після успішних дій, а при помилках не публікуються |
+| `BookingEventKafkaPublisherTest` | Подія йде в `hotel.booking-events` з ключем `bookingId` |
+| `BookingEventAfterCommitTest` | Справжній `@TransactionalEventListener`: відправка лише після commit, нічого при rollback і без транзакції |
+| `BookingEventListenerTest` | Повторна подія не змінює результат; три дії дають три сповіщення; невалідна адреса записується як `REJECTED` |
+| `NotificationServiceApplicationTest` | Контекст сервісу піднімається з вимкненим Kafka-listener'ом, щоб тест не «з'їдав» реальні події |
