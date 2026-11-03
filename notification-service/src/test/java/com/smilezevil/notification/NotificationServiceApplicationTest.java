@@ -12,8 +12,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-class NotificationServiceApplicationTest {
+@SpringBootTest(properties = {"spring.kafka.listener.auto-startup=false", "spring.kafka.admin.auto-create=false"})class NotificationServiceApplicationTest {
 
     @Autowired
     private Environment environment;
