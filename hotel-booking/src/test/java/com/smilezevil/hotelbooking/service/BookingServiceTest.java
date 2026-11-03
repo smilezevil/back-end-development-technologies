@@ -1,5 +1,7 @@
 package com.smilezevil.hotelbooking.service;
 
+import com.smilezevil.common.event.BookingEvent;
+import com.smilezevil.common.event.BookingEventType;
 import com.smilezevil.hotelbooking.dto.BookingDTO;
 import com.smilezevil.hotelbooking.entity.Booking;
 import com.smilezevil.hotelbooking.entity.Guest;
@@ -15,6 +17,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,19 +51,25 @@ class BookingServiceTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private BookingService bookingService;
 
     @Captor
     private ArgumentCaptor<Booking> bookingCaptor;
 
+    @Captor
+    private ArgumentCaptor<BookingEvent> eventCaptor;
+
 
     @Test
-    void create_existingRoomAndGuest_linksThemAndSavesBooking() {
+    void create_existingRoomAndGuest_savesBookingAndPublishesCreatedEvent() {
         Room room = room(1L);
         Guest guest = guest(2L);
         BookingDTO inputDto = bookingDto(null, 1L, 2L);
-        Booking booking = booking(null, null, null);   // мапер room/guest не ставить
+        Booking booking = booking(null, null, null);
         Booking savedBooking = booking(100L, room, guest);
 
         when(bookingMapper.toEntity(inputDto)).thenReturn(booking);
@@ -79,10 +88,18 @@ class BookingServiceTest {
 
         assertThat(result.getId()).isEqualTo(100L);
         verify(notificationService).sendBookingConfirmation(100L, "guest2@gmail.com");
+
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        BookingEvent event = eventCaptor.getValue();
+        assertThat(event.type()).isEqualTo(BookingEventType.CREATED);
+        assertThat(event.bookingId()).isEqualTo(100L);
+        assertThat(event.guestEmail()).isEqualTo("guest2@gmail.com");
+        assertThat(event.totalPrice()).isEqualByComparingTo("6750.00");
+        assertThat(event.eventId()).isNotBlank();
     }
 
     @Test
-    void create_nonExistingRoom_throwsAndDoesNotSave() {
+    void create_nonExistingRoom_throwsAndPublishesNothing() {
         BookingDTO inputDto = bookingDto(null, 99L, 2L);
 
         when(bookingMapper.toEntity(inputDto)).thenReturn(booking(null, null, null));
@@ -93,10 +110,11 @@ class BookingServiceTest {
                 .hasMessage("Кімнату не знайдено");
         verifyNoInteractions(guestRepository);
         verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
-    void create_nonExistingGuest_throwsAndDoesNotSave() {
+    void create_nonExistingGuest_throwsAndPublishesNothing() {
         BookingDTO inputDto = bookingDto(null, 1L, 99L);
 
         when(bookingMapper.toEntity(inputDto)).thenReturn(booking(null, null, null));
@@ -107,6 +125,7 @@ class BookingServiceTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Гостя не знайдено");
         verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
 
@@ -161,7 +180,7 @@ class BookingServiceTest {
 
 
     @Test
-    void update_existingBookingRoomAndGuest_movesToNewRoomAndSaves() {
+    void update_existingBookingRoomAndGuest_savesAndPublishesUpdatedEvent() {
         Room oldRoom = room(1L);
         Room newRoom = room(3L);
         Guest guest = guest(2L);
@@ -181,10 +200,14 @@ class BookingServiceTest {
         assertThat(bookingCaptor.getValue().getRoom()).isSameAs(newRoom);
         assertThat(bookingCaptor.getValue().getGuest()).isSameAs(guest);
         assertThat(result.getRoomId()).isEqualTo(3L);
+
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().type()).isEqualTo(BookingEventType.UPDATED);
+        assertThat(eventCaptor.getValue().bookingId()).isEqualTo(100L);
     }
 
     @Test
-    void update_nonExistingBooking_throwsAndDoesNotSave() {
+    void update_nonExistingBooking_throwsAndPublishesNothing() {
         BookingDTO changes = bookingDto(null, 1L, 2L);
         when(bookingRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -193,10 +216,11 @@ class BookingServiceTest {
                 .hasMessage("Бронювання не знайдено");
         verifyNoInteractions(roomRepository, guestRepository);
         verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
-    void update_nonExistingRoom_throwsAndDoesNotSave() {
+    void update_nonExistingRoom_throwsAndPublishesNothing() {
         Booking existing = booking(100L, room(1L), guest(2L));
         BookingDTO changes = bookingDto(null, 99L, 2L);
 
@@ -208,10 +232,11 @@ class BookingServiceTest {
                 .hasMessage("Кімнату не знайдено");
         verifyNoInteractions(guestRepository);
         verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
-    void update_nonExistingGuest_throwsAndDoesNotSave() {
+    void update_nonExistingGuest_throwsAndPublishesNothing() {
         Booking existing = booking(100L, room(1L), guest(2L));
         BookingDTO changes = bookingDto(null, 1L, 99L);
 
@@ -223,23 +248,45 @@ class BookingServiceTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Гостя не знайдено");
         verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
 
     @Test
-    void delete_existingId_callsRepositoryDelete() {
+    void delete_existingBooking_deletesAndPublishesCancelledEvent() {
+        Booking existing = booking(100L, room(1L), guest(2L));
+        when(bookingRepository.findById(100L)).thenReturn(Optional.of(existing));
+
         bookingService.delete(100L);
 
-        verify(bookingRepository).deleteById(100L);
+        verify(bookingRepository).delete(existing);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().type()).isEqualTo(BookingEventType.CANCELLED);
+        assertThat(eventCaptor.getValue().bookingId()).isEqualTo(100L);
+        assertThat(eventCaptor.getValue().guestEmail()).isEqualTo("guest2@gmail.com");
     }
 
     @Test
-    void delete_databaseError_throwsException() {
-        doThrow(new RuntimeException("DB is down")).when(bookingRepository).deleteById(100L);
+    void delete_nonExistingBooking_throwsAndPublishesNothing() {
+        when(bookingRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> bookingService.delete(999L))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Бронювання не знайдено");
+        verify(bookingRepository, never()).delete(any(Booking.class));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void delete_databaseError_throwsAndPublishesNothing() {
+        Booking existing = booking(100L, room(1L), guest(2L));
+        when(bookingRepository.findById(100L)).thenReturn(Optional.of(existing));
+        doThrow(new RuntimeException("DB is down")).when(bookingRepository).delete(existing);
 
         assertThatThrownBy(() -> bookingService.delete(100L))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("DB is down");
+        verifyNoInteractions(eventPublisher);
     }
 
 
