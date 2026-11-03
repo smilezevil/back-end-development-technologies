@@ -338,3 +338,58 @@ Content-Type: application/json
 ### 6.4 Статус завершеного проживання
 GET http://localhost:8080/api/bookings/{{finished_booking_id}}
 Authorization: Bearer {{auth_token}}
+
+### ================= 8. KAFKA (лаба 8) =================
+
+### 8.1 Створити бронювання (CREATED)
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2026-12-20",
+  "checkOutDate": "2026-12-24",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+> {%
+    client.global.set("kafka_booking_id", response.body.id);
+%}
+
+### 8.2 Змінити бронювання (UPDATED)
+PUT http://localhost:8080/api/bookings/{{kafka_booking_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2026-12-21",
+  "checkOutDate": "2026-12-25",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+### 8.3 Скасувати бронювання (CANCELLED)
+DELETE http://localhost:8080/api/bookings/{{kafka_booking_id}}
+Authorization: Bearer {{admin_token}}
+
+### 8.4 Помилкова дія: кімнати не існує
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 9999,
+  "guestId": 1,
+  "checkInDate": "2026-12-20",
+  "checkOutDate": "2026-12-24",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+### 8.5 Що отримав notification-service
+GET http://localhost:8082/notifications
