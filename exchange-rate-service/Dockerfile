@@ -6,5 +6,5 @@ COPY target/*.jar app.jar
 RUN useradd --system --no-create-home spring
 USER spring
 
-EXPOSE 8081
+EXPOSE 8081 9081
 ENTRYPOINT ["java", "-jar", "app.jar"]
