@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package hotelplatform.exchangerate;
+
+option java_multiple_files = true;
+option java_package = "com.smilezevil.exchangerate.api";
+option java_outer_classname = "ExchangeRatesProto";
+
+service ExchangeRates {
+  rpc GetRate (RateRequest) returns (RateReply);
+  rpc Convert (ConvertRequest) returns (ConvertReply);
+}
+
+message RateRequest {
+  string currency = 1;
+}
+
+message RateReply {
+  string currency = 1;
+  string uah_per_unit = 2;
+}
+
+message ConvertRequest {
+  string currency = 1;
+  string amount_uah = 2;
+}
+
+message ConvertReply {
+  string amount_uah = 1;
+  string currency = 2;
+  string amount = 3;
+}
