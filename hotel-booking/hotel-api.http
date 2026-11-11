@@ -393,3 +393,39 @@ Content-Type: application/json
 
 ### 8.5 Що отримав notification-service
 GET http://localhost:8082/notifications
+
+### ================= 9. INTERSERVICE: HTTP / gRPC (лаба 9) =================
+
+### 9.1 Ціна кімнати за ніч у EUR
+GET http://localhost:8080/api/rooms/1/price?currency=EUR
+
+### 9.2 Кошторис проживання на 3 ночі у PLN
+GET http://localhost:8080/api/rooms/1/quote?nights=3&currency=PLN
+
+### 9.3 Створити бронювання для перевірки
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2027-01-10",
+  "checkOutDate": "2027-01-14",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+> {%
+    client.global.set("rates_booking_id", response.body.id);
+%}
+
+### 9.4 Вартість бронювання у USD
+GET http://localhost:8080/api/bookings/{{rates_booking_id}}/price?currency=USD
+Authorization: Bearer {{auth_token}}
+
+### 9.5 Невідома валюта (404)
+GET http://localhost:8080/api/rooms/1/price?currency=XYZ
+
+### 9.6 Неправильна кількість ночей (400)
+GET http://localhost:8080/api/rooms/1/quote?nights=0&currency=EUR
