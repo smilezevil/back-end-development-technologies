@@ -16,6 +16,7 @@
 
     <properties>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <wiremock.version>3.9.1</wiremock.version>
     </properties>
 
     <dependencies>
@@ -73,6 +74,27 @@
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.smilezevil</groupId>
+            <artifactId>exchange-rate-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-inprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>${wiremock.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
