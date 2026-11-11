@@ -70,3 +70,13 @@ exchange-rate:
 booking:
   summary:
     timeout-ms: 3000
+
+rates:
+  client: ${RATES_CLIENT:http}
+  rest:
+    url: ${RATES_REST_URL:http://localhost:8081}
+    connect-timeout: 1s
+    read-timeout: 2s
+  grpc:
+    target: ${RATES_GRPC_TARGET:localhost:9081}
+    deadline: 2s
