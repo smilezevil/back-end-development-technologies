@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Aspect
-@Component
+@Component("retryOnFailureAspect")
 public class RetryAspect {
 
     @Around("@annotation(retryOnFailure)")
