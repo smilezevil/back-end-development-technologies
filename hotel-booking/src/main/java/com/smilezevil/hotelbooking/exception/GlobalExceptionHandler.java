@@ -30,6 +30,12 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(RatesCircuitOpenException.class)
+    public ResponseEntity<Map<String, String>> handleRatesCircuitOpen(RatesCircuitOpenException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
