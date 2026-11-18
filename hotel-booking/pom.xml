@@ -17,6 +17,8 @@
     <properties>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <wiremock.version>3.9.1</wiremock.version>
+        <resilience4j.version>2.2.0</resilience4j.version>
+        <shedlock.version>5.13.0</shedlock.version>
     </properties>
 
     <dependencies>
@@ -84,6 +86,21 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>${shedlock.version}</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
