@@ -3,6 +3,7 @@ package com.smilezevil.hotelbooking.controller;
 import com.smilezevil.hotelbooking.dto.CurrencyPriceDTO;
 import com.smilezevil.hotelbooking.dto.StayQuoteDTO;
 import com.smilezevil.hotelbooking.exception.RateNotFoundException;
+import com.smilezevil.hotelbooking.exception.RatesCircuitOpenException;
 import com.smilezevil.hotelbooking.exception.RatesUnavailableException;
 import com.smilezevil.hotelbooking.exception.ResourceNotFoundException;
 import com.smilezevil.hotelbooking.service.CurrencyPriceService;
@@ -99,5 +100,14 @@ class CurrencyPriceControllerTest {
 
         mockMvc.perform(get("/api/rooms/1/quote").param("nights", "0").param("currency", "EUR"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void roomPrice_circuitOpen_returns503WithReason() throws Exception {
+        when(currencyPriceService.roomPrice(1L, "EUR")).thenThrow(new RatesCircuitOpenException(null));
+
+        mockMvc.perform(get("/api/rooms/1/price").param("currency", "EUR"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value(containsString("circuit breaker")));
     }
 }
