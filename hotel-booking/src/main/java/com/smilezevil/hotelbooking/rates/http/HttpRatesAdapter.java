@@ -5,9 +5,8 @@ import com.smilezevil.common.dto.ExchangeRateResponse;
 import com.smilezevil.hotelbooking.exception.RateNotFoundException;
 import com.smilezevil.hotelbooking.exception.RatesUnavailableException;
 import com.smilezevil.hotelbooking.rates.ConvertedAmount;
-import com.smilezevil.hotelbooking.rates.CurrencyConverter;
 import com.smilezevil.hotelbooking.rates.ExchangeRate;
-import com.smilezevil.hotelbooking.rates.RateLookup;
+import com.smilezevil.hotelbooking.rates.RatesGateway;
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
@@ -15,7 +14,7 @@ import org.springframework.web.client.RestClientException;
 import java.math.BigDecimal;
 import java.util.function.Supplier;
 
-public class HttpRatesAdapter implements RateLookup, CurrencyConverter {
+public class HttpRatesAdapter implements RatesGateway {
 
     private static final String VIA = "http";
 
