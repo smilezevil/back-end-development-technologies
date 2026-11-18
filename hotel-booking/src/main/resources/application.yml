@@ -80,3 +80,38 @@ rates:
   grpc:
     target: ${RATES_GRPC_TARGET:localhost:9081}
     deadline: 2s
+resilience4j:
+  retry:
+    instances:
+      rates:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.smilezevil.hotelbooking.exception.RatesUnavailableException
+        ignore-exceptions:
+          - com.smilezevil.hotelbooking.exception.RateNotFoundException
+          - com.smilezevil.hotelbooking.exception.RatesCircuitOpenException
+  circuitbreaker:
+    instances:
+      rates:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 6
+        minimum-number-of-calls: 6
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        record-exceptions:
+          - com.smilezevil.hotelbooking.exception.RatesUnavailableException
+        ignore-exceptions:
+          - com.smilezevil.hotelbooking.exception.RateNotFoundException
+reports:
+  booking-stats:
+    interval: PT10S
+    lock-at-most-for: PT30S
+    lock-at-least-for: PT9S
+
+logging:
+  level:
+    net.javacrumbs.shedlock: DEBUG
