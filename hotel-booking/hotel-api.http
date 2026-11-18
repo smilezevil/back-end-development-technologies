@@ -429,3 +429,53 @@ GET http://localhost:8080/api/rooms/1/price?currency=XYZ
 
 ### 9.6 Неправильна кількість ночей (400)
 GET http://localhost:8080/api/rooms/1/quote?nights=0&currency=EUR
+
+### ================= 10. IDEMPOTENCY (лаба 10) =================
+
+### 10.1 Створити бронювання з Idempotency-Key (перший раз)
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Idempotency-Key: lab10-booking-1
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2027-02-01",
+  "checkOutDate": "2027-02-05",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+### 10.2 Повтор з тим самим ключем
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Idempotency-Key: lab10-booking-1
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2027-02-01",
+  "checkOutDate": "2027-02-05",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+### 10.3 Той самий запит без ключа
+POST http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "roomId": 1,
+  "guestId": 1,
+  "checkInDate": "2027-02-01",
+  "checkOutDate": "2027-02-05",
+  "status": "CONFIRMED",
+  "totalPrice": 5400.00
+}
+
+### 10.4 Список бронювань
+GET http://localhost:8080/api/bookings
+Authorization: Bearer {{admin_token}}
