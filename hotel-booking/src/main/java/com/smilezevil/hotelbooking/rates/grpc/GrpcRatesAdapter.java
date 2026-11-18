@@ -8,9 +8,8 @@ import com.smilezevil.exchangerate.api.RateRequest;
 import com.smilezevil.hotelbooking.exception.RateNotFoundException;
 import com.smilezevil.hotelbooking.exception.RatesUnavailableException;
 import com.smilezevil.hotelbooking.rates.ConvertedAmount;
-import com.smilezevil.hotelbooking.rates.CurrencyConverter;
 import com.smilezevil.hotelbooking.rates.ExchangeRate;
-import com.smilezevil.hotelbooking.rates.RateLookup;
+import com.smilezevil.hotelbooking.rates.RatesGateway;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
@@ -19,7 +18,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-public class GrpcRatesAdapter implements RateLookup, CurrencyConverter {
+public class GrpcRatesAdapter implements RatesGateway {
 
     private static final String VIA = "grpc";
 
