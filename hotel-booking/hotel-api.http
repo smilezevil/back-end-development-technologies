@@ -479,3 +479,178 @@ Content-Type: application/json
 ### 10.4 Список бронювань
 GET http://localhost:8080/api/bookings
 Authorization: Bearer {{admin_token}}
+
+### ================= 11. AUDIT / ENVERS (лаба 11) =================
+
+### 11.1 Поточний стан кімнати 1
+GET http://localhost:8080/api/rooms/1
+
+> {%
+    client.global.set("room_hotel_id", response.body.hotelId);
+    client.global.set("room_number", response.body.roomNumber);
+    client.global.set("room_type", response.body.type);
+    client.global.set("room_capacity", response.body.capacity);
+%}
+
+### 11.2 Змінити ціну кімнати 1 на 1400
+PUT http://localhost:8080/api/rooms/1
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "hotelId": {{room_hotel_id}},
+  "roomNumber": "{{room_number}}",
+  "type": "{{room_type}}",
+  "pricePerNight": 1400.00,
+  "capacity": {{room_capacity}}
+}
+
+### 11.3 Змінити ціну кімнати 1 на 1450
+PUT http://localhost:8080/api/rooms/1
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "hotelId": {{room_hotel_id}},
+  "roomNumber": "{{room_number}}",
+  "type": "{{room_type}}",
+  "pricePerNight": 1450.00,
+  "capacity": {{room_capacity}}
+}
+
+### 11.4 Повернути ціну кімнати 1 на 1350
+PUT http://localhost:8080/api/rooms/1
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "hotelId": {{room_hotel_id}},
+  "roomNumber": "{{room_number}}",
+  "type": "{{room_type}}",
+  "pricePerNight": 1350.00,
+  "capacity": {{room_capacity}}
+}
+
+### 11.5 Історія кімнати 1 (ADMIN)
+GET http://localhost:8080/api/history/rooms/1
+Authorization: Bearer {{admin_token}}
+
+### 11.6.1 токен для carol (лише роль USER)
+POST http://localhost:9090/realms/course-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=backend-app
+    &username=carol
+    &password=carol123
+    &grant_type=password
+
+> {%
+    client.global.set("user_token", response.body.access_token);
+%}
+
+### 11.6.2 Історія кімнати 1 від carol (403)
+GET http://localhost:8080/api/history/rooms/1
+Authorization: Bearer {{user_token}}
+
+### 11.7 Поточний стан готелю кімнати 1
+GET http://localhost:8080/api/hotels/{{room_hotel_id}}
+
+> {%
+    client.global.set("hotel_name", response.body.name);
+    client.global.set("hotel_address", response.body.address);
+    client.global.set("hotel_city", response.body.city);
+%}
+
+### 11.8 Змінити лише опис готелю (@NotAudited, нової ревізії не буде)
+PUT http://localhost:8080/api/hotels/{{room_hotel_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "{{hotel_name}}",
+  "address": "{{hotel_address}}",
+  "city": "{{hotel_city}}",
+  "description": "Опис змінено для перевірки @NotAudited"
+}
+
+### 11.9 Змінити назву готелю (нова ревізія буде)
+PUT http://localhost:8080/api/hotels/{{room_hotel_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "{{hotel_name}} (оновлено)",
+  "address": "{{hotel_address}}",
+  "city": "{{hotel_city}}",
+  "description": "Опис змінено для перевірки @NotAudited"
+}
+
+### 11.10 Історія готелю (ADMIN)
+GET http://localhost:8080/api/history/hotels/{{room_hotel_id}}
+Authorization: Bearer {{admin_token}}
+
+### ================= 12. ІМПОРТ КІМНАТ З CSV (лаба 11, Spring Batch) =================
+
+### 12.1 Запустити імпорт rooms-2027.csv (202)
+POST http://localhost:8080/api/imports/rooms?file=rooms-2027.csv
+Authorization: Bearer {{admin_token}}
+
+> {%
+    client.global.set("import_id", response.body.executionId);
+%}
+
+### 12.2 Статус останнього запущеного імпорту
+GET http://localhost:8080/api/imports/rooms/{{import_id}}
+Authorization: Bearer {{admin_token}}
+
+### 12.3 Той самий файл ще раз (409)
+POST http://localhost:8080/api/imports/rooms?file=rooms-2027.csv
+Authorization: Bearer {{admin_token}}
+
+### 12.4 Свідомий повторний імпорт, rerun=true (202)
+POST http://localhost:8080/api/imports/rooms?file=rooms-2027.csv&rerun=true
+Authorization: Bearer {{admin_token}}
+
+> {%
+    client.global.set("import_id", response.body.executionId);
+%}
+
+### 12.5 Файл з поганими рядками (202, частина рядків пропущена)
+POST http://localhost:8080/api/imports/rooms?file=rooms-broken.csv
+Authorization: Bearer {{admin_token}}
+
+> {%
+    client.global.set("import_id", response.body.executionId);
+%}
+
+### 12.6 Забагато поганих рядків, перевищено skip-limit (202, потім FAILED)
+POST http://localhost:8080/api/imports/rooms?file=rooms-too-many-errors.csv
+Authorization: Bearer {{admin_token}}
+
+> {%
+    client.global.set("import_id", response.body.executionId);
+%}
+
+### 12.7 Path traversal (400)
+POST http://localhost:8080/api/imports/rooms?file=../../../etc/passwd
+Authorization: Bearer {{admin_token}}
+
+### 12.8 Абсолютний шлях поза папкою імпорту (400)
+POST http://localhost:8080/api/imports/rooms?file=/etc/hosts
+Authorization: Bearer {{admin_token}}
+
+### 12.9 Файлу немає (404)
+POST http://localhost:8080/api/imports/rooms?file=no-such-file.csv
+Authorization: Bearer {{admin_token}}
+
+### 12.10 Не CSV (400)
+POST http://localhost:8080/api/imports/rooms?file=notes.txt
+Authorization: Bearer {{admin_token}}
+
+### 12.11 Статус імпорту, якого немає (404)
+GET http://localhost:8080/api/imports/rooms/999999
+Authorization: Bearer {{admin_token}}
+
+### 12.12 Звичайний користувач не може запустити імпорт (403)
+POST http://localhost:8080/api/imports/rooms?file=rooms-2027.csv
+Authorization: Bearer {{user_token}}
