@@ -1,13 +1,19 @@
 package com.smilezevil.hotelbooking.entity;
 
+import com.smilezevil.hotelbooking.audit.AuditableEntity;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.envers.Audited;
+
 import java.math.BigDecimal;
 
-@Data
+@Getter
+@Setter
 @Entity
+@Audited
 @Table(name = "room")
-public class Room {
+public class Room extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
