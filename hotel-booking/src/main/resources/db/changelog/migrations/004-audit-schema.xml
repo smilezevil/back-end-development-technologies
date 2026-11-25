@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="007-add-audit-columns-to-hotel" author="smilezevil">
+        <addColumn tableName="hotel">
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)" defaultValue="migration">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="VARCHAR(100)" defaultValue="migration">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="008-add-audit-columns-to-room" author="smilezevil">
+        <addColumn tableName="room">
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)" defaultValue="migration">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="VARCHAR(100)" defaultValue="migration">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="009-add-audit-columns-to-booking" author="smilezevil">
+        <addColumn tableName="booking">
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)" defaultValue="migration">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="VARCHAR(100)" defaultValue="migration">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="010-create-revinfo-table" author="smilezevil">
+        <createTable tableName="revinfo">
+            <column name="rev" type="INT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="revtstmp" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="VARCHAR(100)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="011-create-hotel-aud-table" author="smilezevil">
+        <createTable tableName="hotel_aud">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rev" type="INT">
+                <constraints nullable="false" foreignKeyName="fk_hotel_aud_revinfo" references="revinfo(rev)"/>
+            </column>
+            <column name="revtype" type="SMALLINT"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="address" type="VARCHAR(255)"/>
+            <column name="city" type="VARCHAR(100)"/>
+        </createTable>
+        <addPrimaryKey tableName="hotel_aud" columnNames="id, rev" constraintName="pk_hotel_aud"/>
+    </changeSet>
+
+    <changeSet id="012-create-room-aud-table" author="smilezevil">
+        <createTable tableName="room_aud">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rev" type="INT">
+                <constraints nullable="false" foreignKeyName="fk_room_aud_revinfo" references="revinfo(rev)"/>
+            </column>
+            <column name="revtype" type="SMALLINT"/>
+            <column name="hotel_id" type="BIGINT"/>
+            <column name="room_number" type="VARCHAR(20)"/>
+            <column name="type" type="VARCHAR(30)"/>
+            <column name="price_per_night" type="DECIMAL(10,2)"/>
+            <column name="capacity" type="INT"/>
+        </createTable>
+        <addPrimaryKey tableName="room_aud" columnNames="id, rev" constraintName="pk_room_aud"/>
+    </changeSet>
+
+    <changeSet id="013-create-booking-aud-table" author="smilezevil">
+        <createTable tableName="booking_aud">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rev" type="INT">
+                <constraints nullable="false" foreignKeyName="fk_booking_aud_revinfo" references="revinfo(rev)"/>
+            </column>
+            <column name="revtype" type="SMALLINT"/>
+            <column name="room_id" type="BIGINT"/>
+            <column name="guest_id" type="BIGINT"/>
+            <column name="check_in_date" type="DATE"/>
+            <column name="check_out_date" type="DATE"/>
+            <column name="status" type="VARCHAR(20)"/>
+            <column name="total_price" type="DECIMAL(10,2)"/>
+        </createTable>
+        <addPrimaryKey tableName="booking_aud" columnNames="id, rev" constraintName="pk_booking_aud"/>
+    </changeSet>
+
+</databaseChangeLog>
