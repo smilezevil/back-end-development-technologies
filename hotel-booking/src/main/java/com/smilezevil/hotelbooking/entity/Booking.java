@@ -1,14 +1,21 @@
 package com.smilezevil.hotelbooking.entity;
 
+import com.smilezevil.hotelbooking.audit.AuditableEntity;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.RelationTargetAuditMode;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Data
+@Getter
+@Setter
 @Entity
+@Audited
 @Table(name = "booking")
-public class Booking {
+public class Booking extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,6 +25,7 @@ public class Booking {
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "guest_id", nullable = false)
     private Guest guest;
