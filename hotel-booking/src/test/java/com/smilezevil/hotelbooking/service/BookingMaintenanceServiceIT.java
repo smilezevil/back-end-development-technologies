@@ -1,5 +1,6 @@
 package com.smilezevil.hotelbooking.service;
 
+import com.smilezevil.hotelbooking.audit.AuditingConfig;
 import com.smilezevil.hotelbooking.entity.Booking;
 import com.smilezevil.hotelbooking.entity.Guest;
 import com.smilezevil.hotelbooking.entity.Hotel;
@@ -8,12 +9,15 @@ import com.smilezevil.hotelbooking.repository.BookingRepository;
 import com.smilezevil.hotelbooking.repository.GuestRepository;
 import com.smilezevil.hotelbooking.repository.HotelRepository;
 import com.smilezevil.hotelbooking.repository.RoomRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(BookingMaintenanceService.class)
+@Import({BookingMaintenanceService.class, AuditingConfig.class})
 class BookingMaintenanceServiceIT {
 
     @Autowired
@@ -52,6 +56,9 @@ class BookingMaintenanceServiceIT {
 
     @BeforeEach
     void setUp() {
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated("it-test", null, List.of()));
+
         Hotel hotel = new Hotel();
         hotel.setName("IT Hotel");
         hotel.setCity("Чернівці");
@@ -72,6 +79,10 @@ class BookingMaintenanceServiceIT {
         guestRepository.save(guest);
     }
 
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void cancelStalePendingBookings_runTwice_secondRunChangesNothing() {
@@ -105,7 +116,6 @@ class BookingMaintenanceServiceIT {
         assertThat(secondRun).isZero();
         assertThat(afterSecondRun).isEqualTo(afterFirstRun);
     }
-
 
     private Long saveBooking(String status, LocalDate checkIn, LocalDate checkOut) {
         Booking booking = new Booking();
