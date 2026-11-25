@@ -17,9 +17,19 @@ spring:
     show-sql: true
     properties:
       "[hibernate.format_sql]": true
+      "[org.hibernate.envers.audit_table_suffix]": _aud
+      "[org.hibernate.envers.revision_field_name]": rev
+      "[org.hibernate.envers.revision_type_field_name]": revtype
+      "[org.hibernate.envers.store_data_at_delete]": true
 
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
+
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
 
   security:
     oauth2:
@@ -53,7 +63,6 @@ spring:
           threadPool:
             threadCount: 3
 
-
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
     producer:
@@ -80,6 +89,7 @@ rates:
   grpc:
     target: ${RATES_GRPC_TARGET:localhost:9081}
     deadline: 2s
+
 resilience4j:
   retry:
     instances:
@@ -106,11 +116,18 @@ resilience4j:
           - com.smilezevil.hotelbooking.exception.RatesUnavailableException
         ignore-exceptions:
           - com.smilezevil.hotelbooking.exception.RateNotFoundException
+
 reports:
   booking-stats:
     interval: PT10S
     lock-at-most-for: PT30S
     lock-at-least-for: PT9S
+
+import:
+  rooms:
+    directory: ${IMPORT_DIR:imports}
+    chunk-size: 5
+    skip-limit: 10
 
 logging:
   level:
