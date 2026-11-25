@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="015-add-room-row-version" author="smilezevil">
+        <addColumn tableName="room">
+            <column name="row_version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="016-create-room-version-table" author="smilezevil">
+        <createTable tableName="room_version">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="room_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="operation" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="data" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="db_user" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="client_app" type="VARCHAR(100)"/>
+            <column name="changed_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="room_version"
+                             columnNames="room_id, version"
+                             constraintName="uq_room_version_room_id_version"/>
+    </changeSet>
+
+    <changeSet id="017-room-version-baseline" author="smilezevil">
+        <sql><![CDATA[
+            INSERT INTO room_version (room_id, version, operation, data, db_user, client_app)
+            SELECT r.id, r.row_version, 'BASELINE', to_jsonb(r), current_user, current_setting('application_name')
+            FROM room r
+            ]]></sql>
+    </changeSet>
+
+    <changeSet id="018-room-versioning-functions" author="smilezevil">
+        <sql splitStatements="false"><![CDATA[
+            CREATE OR REPLACE FUNCTION room_next_row_version() RETURNS trigger
+            LANGUAGE plpgsql AS $$
+            BEGIN
+                IF TG_OP = 'INSERT' THEN
+                    NEW.row_version := 1;
+            RETURN NEW;
+            END IF;
+                NEW.row_version := OLD.row_version;
+                IF NEW IS DISTINCT FROM OLD THEN
+                    NEW.row_version := OLD.row_version + 1;
+            END IF;
+            RETURN NEW;
+            END
+            $$
+            ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+            CREATE OR REPLACE FUNCTION room_save_version() RETURNS trigger
+            LANGUAGE plpgsql AS $$
+            BEGIN
+                IF TG_OP = 'DELETE' THEN
+                    INSERT INTO room_version (room_id, version, operation, data, db_user, client_app)
+                    VALUES (OLD.id, OLD.row_version + 1, TG_OP, to_jsonb(OLD), current_user,
+                            current_setting('application_name'));
+            RETURN NULL;
+            END IF;
+                IF TG_OP = 'UPDATE' AND NEW.row_version = OLD.row_version THEN
+                    RETURN NULL;
+            END IF;
+            INSERT INTO room_version (room_id, version, operation, data, db_user, client_app)
+            VALUES (NEW.id, NEW.row_version, TG_OP, to_jsonb(NEW), current_user,
+                    current_setting('application_name'));
+            RETURN NULL;
+            END
+            $$
+            ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+            CREATE OR REPLACE FUNCTION room_restore_version(p_room_id BIGINT, p_version INT) RETURNS INT
+            LANGUAGE plpgsql AS $$
+            DECLARE
+            snapshot room;
+                new_version INT;
+            BEGIN
+            SELECT * INTO snapshot
+            FROM jsonb_populate_record(NULL::room,
+                                       (SELECT data FROM room_version WHERE room_id = p_room_id AND version = p_version));
+            IF snapshot.id IS NULL THEN
+                    RAISE EXCEPTION 'Версії % для кімнати % немає', p_version, p_room_id;
+            END IF;
+            UPDATE room
+            SET hotel_id = snapshot.hotel_id,
+                room_number = snapshot.room_number,
+                type = snapshot.type,
+                price_per_night = snapshot.price_per_night,
+                capacity = snapshot.capacity,
+                updated_at = LOCALTIMESTAMP,
+                updated_by = 'db:restore-v' || p_version
+            WHERE id = p_room_id
+                RETURNING row_version INTO new_version;
+            RETURN new_version;
+            END
+            $$
+            ]]></sql>
+    </changeSet>
+
+    <changeSet id="019-room-versioning-triggers" author="smilezevil">
+        <sql splitStatements="false"><![CDATA[
+            CREATE TRIGGER room_row_version_before
+                BEFORE INSERT OR UPDATE ON room
+                                     FOR EACH ROW EXECUTE FUNCTION room_next_row_version()
+            ]]></sql>
+        <sql splitStatements="false"><![CDATA[
+            CREATE TRIGGER room_version_after
+                AFTER INSERT OR UPDATE OR DELETE ON room
+                FOR EACH ROW EXECUTE FUNCTION room_save_version()
+            ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>
