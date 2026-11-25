@@ -8,5 +8,8 @@
     <include file="db/changelog/migrations/001-initial-schema.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/migrations/002-quartz-schema.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/migrations/003-shedlock-schema.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/migrations/004-audit-schema.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/migrations/005-batch-schema.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/migrations/006-room-versioning.xml" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>
